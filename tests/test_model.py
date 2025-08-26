@@ -13,5 +13,5 @@ class TestChurnModelTraining(unittest.TestCase):
         # Check it has learned feature importances
         self.assertGreaterEqual(len(model.feature_importances_), 10)  # Telco has many features
 
-if _name_ == "_main_":
+if __name__ == "__main__":
     unittest.main()
