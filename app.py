@@ -1,53 +1,51 @@
 # app.py
 import os
-import json
 import joblib
-import numpy as np
+import pandas as pd
 from flask import Flask, request, jsonify
 
-# config
 MODEL_PATH = os.getenv("MODEL_PATH", "model/churn_model.pkl")
 
-# app
-app = Flask(__name__)
+app = Flask(_name_)
 
-# load once at startup
+# Load model
 try:
     model = joblib.load(MODEL_PATH)
 except Exception as e:
-    # fail fast with a helpful message
     raise RuntimeError(f"Could not load model from {MODEL_PATH}: {e}")
 
-@app.get("/health")
+# Define feature columns manually (must match training order in train.py)
+FEATURE_COLS = [
+    'gender', 'SeniorCitizen', 'Partner', 'Dependents', 'tenure',
+    'PhoneService', 'MultipleLines', 'InternetService', 'OnlineSecurity',
+    'OnlineBackup', 'DeviceProtection', 'TechSupport', 'StreamingTV',
+    'StreamingMovies', 'Contract', 'PaperlessBilling', 'PaymentMethod',
+    'MonthlyCharges', 'TotalCharges'
+]
+
+@app.route("/health", methods=["GET"])
 def health():
-    return {"status": "ok"}, 200
+    return {"status": "ok"}
 
-@app.post("/predict")
+@app.route("/predict", methods=["POST"])
 def predict():
-    """
-    Accept either:
-    {"input": [[...feature vector...], [...]]} # 2D List
-    or
-    {"input": [...feature vector...]} # 1D List
-    """
     try:
-        payload = request.get_json(force=True)
-        x = payload.get("input")
-        if x is None:
-            return jsonify(error="Missing 'input'"), 400
+        data = request.get_json()
+        if not data or "input" not in data:
+            return jsonify({"error": "Missing 'input'"}), 400
 
-        # normalize to 2D array
-        if isinstance(x, list) and len(x) > 0 and not isinstance(x[0], list):
+        x = data["input"]
+        if isinstance(x, dict):  # single record
             x = [x]
 
-        X = np.array(x, dtype=float)
-        preds = model.predict(X)
-        preds = preds.tolist()  # convert numpy types to native Python
-        return jsonify(prediction=preds), 200
+        df = pd.DataFrame(x)
+        df = df.reindex(columns=FEATURE_COLS, fill_value=0)  # align with training
+
+        preds = model.predict(df).tolist()
+        return jsonify({"prediction": preds})
 
     except Exception as e:
-        return jsonify(error=str(e)), 500
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    # local dev only; Render will run with Gunicorn (see startCommand below)
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+if _name_ == "_main_":
+    app.run(host="0.0.0.0", port=8000)
