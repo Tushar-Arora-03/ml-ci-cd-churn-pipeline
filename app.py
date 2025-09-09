@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 
 MODEL_PATH = os.getenv("MODEL_PATH", "model/churn_model.pkl")
 
-app = Flask(_name_)
+app = Flask(__name__)
 
 # Load model
 try:
